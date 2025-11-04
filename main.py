@@ -25,7 +25,7 @@ async def tcp_push_demo():
     reolink_host = os.getenv("REOLINK_HOST") or os.getenv("HOST")
     reolink_username = os.getenv("REOLINK_USERNAME") or os.getenv("USER")
     reolink_password = os.getenv("REOLINK_PASSWORD") or os.getenv("PASSWORD")
-    motion_base_url = os.getenv("MOTION_BASE_URL", "http://10.0.1.4:8080").rstrip("/")
+    motion_base_url = os.getenv("MOTION_BASE_URL").rstrip("/")
     motion_reset_delay = float(os.getenv("MOTION_RESET_DELAY_SECONDS", 5))
 
     print('Connecting to Reolink device at', reolink_host);
