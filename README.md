@@ -62,6 +62,43 @@ Run with environment variables mapped from your shell or an `.env` file:
 docker run --rm --env-file .env reolink-event-relay
 ```
 
+Follow logs from another shell:
+```bash
+docker logs -f <container_id>
+```
+
+Override individual variables directly:
+```bash
+docker run --rm \
+  -e REOLINK_HOST=10.0.1.2 \
+  -e REOLINK_USERNAME=admin \
+  -e REOLINK_PASSWORD=secret \
+  -e MOTION_BASE_URL=http://10.0.1.4:8080 \
+  reolink-event-relay
+```
+
+Mount a host directory for log files (optional):
+```bash
+docker run --rm --env-file .env -v $(pwd)/logs:/logs reolink-event-relay
+```
+
+### Docker Compose
+
+Example `docker-compose.yml` entry:
+```yaml
+services:
+  reolink-event-relay:
+    image: reolink-event-relay
+    build: .
+    env_file: .env
+    restart: unless-stopped
+```
+
+Launch with:
+```bash
+docker compose up -d
+```
+
 The container entrypoint runs `python main.py`. Mount additional volumes if you need to persist logs or use alternative configuration files.
 
 ## Notes
