@@ -12,9 +12,6 @@ from dotenv import load_dotenv
 logging.basicConfig(level="INFO")
 _LOGGER = logging.getLogger(__name__)
 
-MOTION_BASE_URL = "http://10.0.1.4:8080"
-MOTION_RESET_DELAY_SECONDS = 5
-
 TRACKED_AI_EVENTS = {
     "persona": ("person", "people"),
     "auto": ("vehicle",),
@@ -28,6 +25,8 @@ async def tcp_push_demo():
     reolink_host = os.getenv("REOLINK_HOST") or os.getenv("HOST")
     reolink_username = os.getenv("REOLINK_USERNAME") or os.getenv("USER")
     reolink_password = os.getenv("REOLINK_PASSWORD") or os.getenv("PASSWORD")
+    motion_base_url = os.getenv("MOTION_BASE_URL", "http://10.0.1.4:8080").rstrip("/")
+    motion_reset_delay = float(os.getenv("MOTION_RESET_DELAY_SECONDS", 5))
 
     print('Connecting to Reolink device at', reolink_host);
     
@@ -49,8 +48,8 @@ async def tcp_push_demo():
     async def trigger_motion(camera_name: str, channel: int) -> None:
         name_for_url = camera_name.strip() if camera_name and camera_name.strip() else f"channel-{channel}"
         encoded_name = quote(name_for_url, safe="")
-        motion_url = f"{MOTION_BASE_URL}/motion?{encoded_name}"
-        reset_url = f"{MOTION_BASE_URL}/motion/reset?{encoded_name}"
+        motion_url = f"{motion_base_url}/motion?{encoded_name}"
+        reset_url = f"{motion_base_url}/motion/reset?{encoded_name}"
 
         try:
             async with session.get(motion_url) as response:
@@ -61,7 +60,7 @@ async def tcp_push_demo():
         except Exception as err:
             _LOGGER.warning("Errore durante la notifica di movimento per %s: %s", name_for_url, err)
 
-        await asyncio.sleep(MOTION_RESET_DELAY_SECONDS)
+        await asyncio.sleep(motion_reset_delay)
 
         try:
             async with session.get(reset_url) as response:
