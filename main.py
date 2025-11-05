@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Dict, Set
+from time import monotonic
+from typing import Dict, Set, Tuple
 from urllib.parse import quote
 
 import aiohttp
@@ -31,12 +32,16 @@ async def tcp_push_demo():
         )
 
     _LOGGER.info(
-        "Settings loaded: host=%s, webhook_base=%s, motion_reset_delay=%.1fs, reconnect_initial=%.1fs, reconnect_max=%.1fs",
+        (
+            "Settings loaded: host=%s, webhook_base=%s, motion_reset_delay=%.1fs, "
+            "reconnect_initial=%.1fs, reconnect_max=%.1fs, motion_cooldown=%.1fs"
+        ),
         settings.reolink_host,
         settings.motion_base_url,
         settings.motion_reset_delay,
         settings.reconnect_initial_delay,
         settings.reconnect_max_delay,
+        settings.motion_event_cooldown,
     )
 
     reconnect_delay = settings.reconnect_initial_delay
@@ -52,6 +57,7 @@ async def tcp_push_demo():
         session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5))
         _LOGGER.debug("HTTP client session created with timeout=5s")
         pending_tasks: Set[asyncio.Task] = set()
+        last_motion_event_at: Dict[Tuple[int, str], float] = {}
         loop = asyncio.get_running_loop()
 
         async def trigger_motion(camera_name: str, channel: int) -> None:
@@ -129,12 +135,27 @@ async def tcp_push_demo():
                         detected = any(bool(host.ai_detected(channel, obj_type)) for obj_type in object_types)
                         previous = channel_cache.get(label, False)
                         if detected and not previous:
+                            event_key = (channel, label)
+                            now = monotonic()
+                            last_trigger_time = last_motion_event_at.get(event_key)
+                            if last_trigger_time is not None and now - last_trigger_time < settings.motion_event_cooldown:
+                                remaining = settings.motion_event_cooldown - (now - last_trigger_time)
+                                _LOGGER.info(
+                                    "Ignoro il rilevamento %s per la telecamera %s (canale %s): ancora %.1fs di cooldown",
+                                    label,
+                                    camera_name,
+                                    channel,
+                                    remaining,
+                                )
+                                channel_cache[label] = detected
+                                continue
                             _LOGGER.info(
                                 "Rilevamento %s dalla telecamera %s (canale %s)",
                                 label,
                                 camera_name,
                                 channel,
                             )
+                            last_motion_event_at[event_key] = now
                             task = loop.create_task(trigger_motion(camera_name, channel))
                             _LOGGER.info(
                                 "Scheduling motion notification task for camera '%s' (channel %s) due to %s detection",
